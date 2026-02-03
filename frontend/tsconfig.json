@@ -1,0 +1,45 @@
+{
+  "compilerOptions": {
+
+    "target": "ES2020",
+    "useDefineForClassFields": true,
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "react-jsx",
+
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    },
+
+    "composite": true,
+    "declaration": true,
+    "declarationMap": true,
+    "allowJs": true,
+    "skipLibCheck": true,
+
+    "noImplicitAny": false,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "strictNullChecks": false,
+    "strict": false
+  },
+
+  "include": ["src"],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "public",
+    "postcss.config.js",
+    "tailwind.config.js",
+    "vite.config.js",
+  ],
+
+  "references": [
+    { "paths": "./tsconfig.app.json" },
+    { "paths": "./tsconfig.node.json" }
+  ]
+}
+
