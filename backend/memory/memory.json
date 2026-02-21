@@ -1,17 +1,7 @@
 {
-  "lastIntent": "GERAL",
+  "lastIntent": "IDEIA",
   "topics": [],
   "history": [
-    {
-      "role": "user",
-      "content": "ola chat me de dicas",
-      "timestamp": "2026-01-28T21:49:37.059Z"
-    },
-    {
-      "role": "user",
-      "content": "kkkkkkkkk",
-      "timestamp": "2026-01-28T21:56:39.140Z"
-    },
     {
       "role": "user",
       "content": "✍️ Criar um plano de treino",
@@ -101,6 +91,16 @@
       "role": "user",
       "content": "Como atender um cliente que está insatisfeito com as aulas?",
       "timestamp": "2026-02-03T13:58:55.233Z"
+    },
+    {
+      "role": "user",
+      "content": "Me de ideias criativas para aulas de musica infantil",
+      "timestamp": "2026-02-10T23:00:16.263Z"
+    },
+    {
+      "role": "user",
+      "content": "Me de ideias criativas para aulas de musica infantil",
+      "timestamp": "2026-02-10T23:44:14.547Z"
     }
   ]
 }

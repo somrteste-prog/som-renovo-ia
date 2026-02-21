@@ -1,212 +1,301 @@
-import { useState } from 'react';
-import { Mail, User, Building2, ArrowRight, Music } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { cn } from '@/lib/utils';
-import logo from '@/assets/logo.jpeg';
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { Mail, Lock, User, Building2, ArrowRight, Music, Key } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
+import { useAuth } from "@/contexts/AuthContext";
+import logo from "@/assets/logo.jpeg";
 
-interface LoginScreenProps {
-  onLogin: (email: string, name: string, sector: string) => void;
-}
+const SECTORS = ["Atendimento", "Pedagógico", "Marketing", "Administrativo"];
+const ADMIN_SECRET = "admin123"; // Senha extra para criar conta admin/mentor
 
-export function LoginScreen({ onLogin }: LoginScreenProps) {
-  const [email, setEmail] = useState('');
-  const [name, setName] = useState('');
-  const [sector, setSector] = useState('');
-  const [step, setStep] = useState<'email' | 'info'>('email');
+export function LoginScreen() {
+  const { login, loginGuest, updateUser } = useAuth();
+  const navigate = useNavigate();
+
+  // Estados gerais
+  const [mode, setMode] = useState<"login" | "signup">("login");
+  const [step, setStep] = useState<"credentials" | "info">("credentials");
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleEmailSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (email.trim() && email.includes('@')) {
-      setStep('info');
-    }
-  };
+  // Campos do usuário
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
+  const [role, setRole] = useState<"student" | "mentor" | "admin">("student");
+  const [sector, setSector] = useState("");
+  const [secretKey, setSecretKey] = useState("");
 
-  const handleInfoSubmit = async (e: React.FormEvent) => {
+  // Funções
+  async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
-    if (name.trim() && sector.trim()) {
+    if (!email || !password) return;
+
+    try {
       setIsLoading(true);
-      // Simulate a brief loading state for better UX
-      await new Promise(resolve => setTimeout(resolve, 500));
-      onLogin(email.trim(), name.trim(), sector.trim());
-    }
-  };
+      await login(email.trim(), password.trim());
 
-  const sectors = [
-    'Atendimento',
-    'Pedagógico',
-    'Marketing',
-    'Administrativo',
-  ];
+      const { user } = JSON.parse(localStorage.getItem("@auth:user") || "{}");
+      if (user?.role === "admin") navigate("/dashboard");
+      else navigate("/home");
+    } catch {
+      alert("Credenciais inválidas");
+      setIsLoading(false);
+    }
+  }
+
+  async function handleSignupStep(e: React.FormEvent) {
+    e.preventDefault();
+
+    // Primeiro passo: email e senha
+    if (step === "credentials") {
+      if (!email || !password) return;
+      setStep("info");
+      return;
+    }
+
+    // Segundo passo: info adicionais
+    if (!name || !sector) return;
+
+    if ((role === "admin" || role === "mentor") && secretKey !== ADMIN_SECRET) {
+      alert("Chave secreta inválida para criar conta admin/mentor");
+      return;
+    }
+
+    // Aqui chamaria API real para criar conta, mas vamos simular login
+    const simulatedUser = {
+      id: Date.now().toString(),
+      name,
+      email,
+      role,
+      sector,
+    };
+    localStorage.setItem("@auth:user", JSON.stringify({ user: simulatedUser, token: "guest" }));
+
+    // Atualiza contexto
+    updateUser(simulatedUser);
+
+    // Redireciona
+    if (role === "admin") navigate("/dashboard");
+    else navigate("/home");
+  }
+
+  function handleGuest() {
+    loginGuest();
+    navigate("/home");
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
-      {/* Header with gradient */}
-      <div className="relative overflow-hidden">
-        <div className="absolute inset-0 som-gradient opacity-[0.03]" />
-        <div className="absolute -top-24 -right-24 w-48 h-48 rounded-full bg-primary/10 blur-3xl" />
-        <div className="absolute -bottom-12 -left-12 w-32 h-32 rounded-full bg-primary/10 blur-2xl" />
-        
-        <div className="relative px-6 pt-12 pb-8">
-          {/* Logo */}
-          <div className="flex flex-col items-center">
-            <div className="relative mb-4">
-              <div className="absolute inset-0 rounded-2xl bg-primary/20 blur-xl animate-pulse-slow" />
-              <img
-                src={logo}
-                alt="Som Renovo"
-                className="relative h-20 w-20 rounded-2xl object-cover ring-4 ring-background shadow-xl"
-              />
-            </div>
-            <h1 className="text-2xl font-bold text-foreground">Som Renovo IA</h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              Assistente interno inteligente
-            </p>
-          </div>
-        </div>
+      {/* Header */}
+      <div className="relative px-6 pt-12 pb-8 text-center">
+        <img
+          src={logo}
+          alt="Som Renovo"
+          className="h-20 w-20 rounded-2xl mx-auto mb-4 shadow-xl"
+        />
+        <h1 className="text-2xl font-bold">Som Renovo IA</h1>
+        <p className="text-sm text-muted-foreground">Assistente interno inteligente</p>
       </div>
 
       {/* Form */}
       <div className="flex-1 px-6 py-8">
-        <div className="max-w-sm mx-auto">
-          {step === 'email' ? (
-            <form onSubmit={handleEmailSubmit} className="space-y-6 animate-fade-in">
-              <div className="text-center space-y-2">
-                <h2 className="text-lg font-semibold text-foreground">
-                  Bem-vindo de volta!
-                </h2>
-                <p className="text-sm text-muted-foreground">
-                  Entre com seu email corporativo
-                </p>
+        <div className="max-w-sm mx-auto space-y-6">
+          {/* Modo Login */}
+          {mode === "login" && (
+            <form onSubmit={handleLogin} className="space-y-4">
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  type="email"
+                  placeholder="Email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="pl-10 h-12"
+                  required
+                />
               </div>
 
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">
-                  Email
-                </label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="seu.email@somrenovo.com.br"
-                    className="pl-10 h-12 text-base"
-                    required
-                    autoFocus
-                  />
-                </div>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  type="password"
+                  placeholder="Senha"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="pl-10 h-12"
+                  required
+                />
               </div>
 
-              <Button
-                type="submit"
-                className="w-full h-12 som-gradient shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-all duration-200 group"
-                disabled={!email.trim() || !email.includes('@')}
-              >
-                Continuar
-                <ArrowRight className="h-4 w-4 ml-2 group-hover:translate-x-1 transition-transform" />
+              <Button type="submit" className="w-full h-12 som-gradient" disabled={isLoading}>
+                {isLoading ? "Entrando..." : "Entrar"}
+                <ArrowRight className="h-4 w-4 ml-2" />
               </Button>
-            </form>
-          ) : (
-            <form onSubmit={handleInfoSubmit} className="space-y-6 animate-fade-in">
-              <div className="text-center space-y-2">
-                <h2 className="text-lg font-semibold text-foreground">
-                  Quase lá!
-                </h2>
-                <p className="text-sm text-muted-foreground">
-                  Complete seu perfil para começar
-                </p>
-              </div>
 
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-foreground">
-                    Como você quer ser chamado?
-                  </label>
+              <Button type="button" variant="outline" className="w-full h-12" onClick={handleGuest}>
+                Entrar como visitante
+              </Button>
+
+              <p className="text-sm text-center text-muted-foreground mt-2">
+                Não tem conta?{" "}
+                <button
+                  type="button"
+                  className="text-primary font-medium"
+                  onClick={() => {
+                    setMode("signup");
+                    setStep("credentials");
+                  }}
+                >
+                  Criar conta
+                </button>
+              </p>
+            </form>
+          )}
+
+          {/* Modo Criar Conta */}
+          {mode === "signup" && (
+            <form onSubmit={handleSignupStep} className="space-y-4">
+              {step === "credentials" && (
+                <>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      type="email"
+                      placeholder="Email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="pl-10 h-12"
+                      required
+                    />
+                  </div>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      type="password"
+                      placeholder="Senha"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="pl-10 h-12"
+                      required
+                    />
+                  </div>
+
+                  <Button type="submit" className="w-full h-12 som-gradient">
+                    Continuar
+                    <ArrowRight className="h-4 w-4 ml-2" />
+                  </Button>
+                </>
+              )}
+
+              {step === "info" && (
+                <>
                   <div className="relative">
                     <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
                       type="text"
+                      placeholder="Nome"
                       value={name}
                       onChange={(e) => setName(e.target.value)}
-                      placeholder="Seu nome"
-                      className="pl-10 h-12 text-base"
+                      className="pl-10 h-12"
                       required
                       autoFocus
                     />
                   </div>
-                </div>
 
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-foreground flex items-center gap-2">
-                    <Building2 className="h-4 w-4 text-muted-foreground" />
-                    Qual seu setor?
-                  </label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {sectors.map((s) => (
-                      <button
-                        key={s}
-                        type="button"
-                        onClick={() => setSector(s)}
-                        className={cn(
-                          "px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 border",
-                          sector === s
-                            ? "bg-primary text-primary-foreground border-primary shadow-md shadow-primary/25"
-                            : "bg-card text-card-foreground border-border hover:border-primary/30 hover:bg-muted"
-                        )}
-                      >
-                        {s}
-                      </button>
-                    ))}
-                  </div>
-                  <Input
-                    type="text"
-                    value={sectors.includes(sector) ? '' : sector}
-                    onChange={(e) => setSector(e.target.value)}
-                    placeholder="Ou digite outro setor..."
-                    className="h-10 text-sm"
-                  />
-                </div>
-              </div>
-
-              <div className="flex gap-3">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="flex-1 h-12"
-                  onClick={() => setStep('email')}
-                >
-                  Voltar
-                </Button>
-                <Button
-                  type="submit"
-                  className="flex-1 h-12 som-gradient shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-all duration-200"
-                  disabled={!name.trim() || !sector.trim() || isLoading}
-                >
-                  {isLoading ? (
-                    <div className="flex items-center gap-2">
-                      <div className="w-4 h-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
-                      Entrando...
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-foreground flex items-center gap-2">
+                      <Building2 className="h-4 w-4 text-muted-foreground" /> Setor
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {SECTORS.map((s) => (
+                        <button
+                          key={s}
+                          type="button"
+                          className={cn(
+                            "px-4 py-2 rounded-xl text-sm font-medium border transition-all duration-200",
+                            sector === s
+                              ? "bg-primary text-primary-foreground border-primary shadow-md"
+                              : "bg-card text-card-foreground border-border hover:border-primary/30 hover:bg-muted"
+                          )}
+                          onClick={() => setSector(s)}
+                        >
+                          {s}
+                        </button>
+                      ))}
                     </div>
-                  ) : (
-                    <>
-                      Entrar
-                      <Music className="h-4 w-4 ml-2" />
-                    </>
+                    <Input
+                      type="text"
+                      placeholder="Ou digite outro setor..."
+                      value={SECTORS.includes(sector) ? "" : sector}
+                      onChange={(e) => setSector(e.target.value)}
+                      className="h-10 text-sm"
+                    />
+                  </div>
+
+                  {/* Role */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-foreground">Tipo de conta</label>
+                    <select
+                      value={role}
+                      onChange={(e) => setRole(e.target.value as any)}
+                      className="w-full h-12 border rounded-md px-3"
+                    >
+                      <option value="student">Aluno</option>
+                      <option value="mentor">Mentor</option>
+                      <option value="admin">Admin</option>
+                    </select>
+                  </div>
+
+                  {/* Chave secreta para mentor/admin */}
+                  {(role === "admin" || role === "mentor") && (
+                    <div className="relative">
+                      <Key className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        type="password"
+                        placeholder="Chave secreta"
+                        value={secretKey}
+                        onChange={(e) => setSecretKey(e.target.value)}
+                        className="pl-10 h-12"
+                        required
+                      />
+                    </div>
                   )}
-                </Button>
-              </div>
+
+                  <div className="flex gap-3">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="flex-1 h-12"
+                      onClick={() => setStep("credentials")}
+                    >
+                      Voltar
+                    </Button>
+                    <Button type="submit" className="flex-1 h-12 som-gradient">
+                      Criar conta
+                    </Button>
+                  </div>
+                </>
+              )}
+
+              <p className="text-sm text-center text-muted-foreground mt-2">
+                Já tem conta?{" "}
+                <button
+                  type="button"
+                  className="text-primary font-medium"
+                  onClick={() => setMode("login")}
+                >
+                  Entrar
+                </button>
+              </p>
             </form>
           )}
         </div>
       </div>
 
-      {/* Footer */}
-      <div className="px-6 py-4 text-center">
-        <p className="text-[11px] text-muted-foreground/60">
-          Som Renovo IA — Feito para a equipe tomar decisões melhores
-        </p>
+      <div className="px-6 py-4 text-center text-xs text-muted-foreground/60">
+        Som Renovo IA — Sistema interno
       </div>
     </div>
   );

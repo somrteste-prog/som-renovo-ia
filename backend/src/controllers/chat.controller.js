@@ -1,4 +1,4 @@
-const fs = require('fs'); 
+const fs = require('fs');
 const path = require('path');
 
 const featureFlags = require('../config/features.config');
@@ -7,13 +7,12 @@ const { readMemory, updateMemory } = require('../services/memory.service');
 const { readInsights, updateInsights } = require('../services/insights.service');
 const { routeByIntent } = require('../utils/intentRouter');
 
+const { createConversation } = require('../repositories/conversation.repository');
+const { createMessage } = require('../repositories/message.repository');
+
 // ===== CONTEXTO FIXO =====
 const contextPath = path.join(__dirname, '../memory/context.json');
 const promptBasePath = path.join(__dirname, '../memory/prompt-base.md');
-
-const context = fs.existsSync(contextPath)
-  ? JSON.parse(fs.readFileSync(contextPath, 'utf-8'))
-  : {};
 
 const promptBase = fs.existsSync(promptBasePath)
   ? fs.readFileSync(promptBasePath, 'utf-8')
@@ -34,13 +33,13 @@ function classifyIntent(message = '') {
 // ===== CONTROLLER =====
 async function chatController(req, res) {
   try {
-    // ⚠️ Protege contra body undefined
     if (!req.body) {
-         return 
-      res.status(400).json({ error: 'Body da requisição está vazio ou mal formatado' });
+      return res.status(400).json({
+        error: 'Body da requisição está vazio ou mal formatado'
+      });
     }
 
-    const { mensagem, nome_usuario, setor, contexto_cliente } = req.body;
+    const { mensagem, conversationId } = req.body;
 
     if (!mensagem || typeof mensagem !== 'string' || mensagem.trim().length < 3) {
       return res.status(400).json({
@@ -48,10 +47,24 @@ async function chatController(req, res) {
       });
     }
 
-    // 1️⃣ Detecta intenção
+    // ⚠️ Provisório: UUID do usuário (substituir por autenticação real)
+    const userId = '0151947b-8f29-4703-aa79-f3da165739a7';
+
+    // ===== CONVERSA =====
+    let convoId = conversationId;
+
+    if (!convoId) {
+      const convo = await createConversation({
+        userId,
+        title: mensagem.slice(0, 40)
+      });
+      convoId = convo.id;
+    }
+
+    // ===== DETECÇÃO DE INTENÇÃO =====
     const intent = classifyIntent(mensagem);
 
-    // 2️⃣ Memória e insights com fallback seguro
+    // ===== MEMÓRIA E INSIGHTS =====
     const memory = featureFlags?.features?.memoryEnabled
       ? readMemory() || { history: [] }
       : { history: [] };
@@ -60,10 +73,9 @@ async function chatController(req, res) {
       ? readInsights() || { topIntents: {}, topTopics: [] }
       : { topIntents: {}, topTopics: [] };
 
-    // 3️⃣ Instrução por intenção
     const instruction = routeByIntent(intent);
 
-    // 4️⃣ Prompt final
+    // ===== PROMPT FINAL =====
     const finalPrompt = `
 ${promptBase}
 
@@ -72,7 +84,7 @@ ${promptBase}
 ${instruction}
 
 Histórico recente:
-${memory.history.length > 0
+${memory.history.length
   ? memory.history.map(h => `- ${h.content || h.message}`).join('\n')
   : '- Nenhum histórico ainda.'}
 
@@ -91,40 +103,49 @@ Pedido do usuário:
 Responda de forma estratégica, clara e aplicável.
 `;
 
-    // 5️⃣ Chamada da IA
+    // ===== SALVAR MENSAGEM DO USUÁRIO =====
+    await createMessage({
+      conversationId: convoId,
+      role: 'user',
+      content: mensagem
+    });
+
+    // ===== CHAMADA DA IA =====
     const reply = await callAI(finalPrompt);
 
-    // 6️⃣ Atualiza memória e insights apenas se habilitado
+    // ===== SALVAR RESPOSTA DA IA =====
+    await createMessage({
+      conversationId: convoId,
+      role: 'assistant',
+      content: reply
+    });
+
+    // ===== ATUALIZAÇÃO DE MEMÓRIA E INSIGHTS =====
     if (featureFlags?.features?.memoryEnabled) {
       updateMemory({ intent, message: mensagem });
     }
+
     if (featureFlags?.features?.insightsEnabled) {
       updateInsights({ intent, message: mensagem });
     }
 
-    console.log(`Intenção detectada: ${intent}`);
-
-    // 7️⃣ Resposta
+    // ===== RESPOSTA FINAL =====
     return res.json({
-  resposta: reply,
-  intent,
-  meta: {
-    provider: process.env.AI_PROVIDER || 'openrouter',
-    model: process.env.AI_MODEL || 'deepseek',
-    timestamp: new Date().toISOString(),
-  },
-});
+      resposta: reply,
+      intent,
+      conversationId: convoId,
+      meta: {
+        provider: process.env.AI_PROVIDER || 'openrouter',
+        model: process.env.AI_MODEL || 'deepseek/deepseek-chat',
+        timestamp: new Date().toISOString()
+      }
+    });
 
   } catch (error) {
     console.error('Erro no chatController:', error);
 
-    // Retorna erro detalhado se feature flag de debug estiver ativa
-    if (featureFlags?.features?.debugEnabled) {
-      return res.status(500).json({ error: error.message });
-    }
-
     return res.status(500).json({
-      error: 'Erro interno ao processar a mensagem'
+      error: error.message || 'Erro interno ao processar a mensagem'
     });
   }
 }

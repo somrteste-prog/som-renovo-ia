@@ -34,12 +34,12 @@
     "public",
     "postcss.config.js",
     "tailwind.config.js",
-    "vite.config.js",
+    "vite.config.js"
   ],
 
   "references": [
-    { "paths": "./tsconfig.app.json" },
-    { "paths": "./tsconfig.node.json" }
+    { "path": "./tsconfig.app.json" },
+    { "path": "./tsconfig.node.json" }
   ]
 }
 

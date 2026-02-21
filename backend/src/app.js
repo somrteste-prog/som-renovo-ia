@@ -40,10 +40,10 @@ app.use('/api', chatRoutes);
 // Rotas Admin e Auth
 // =====================
 const adminRoutes = require('./routes/admin.route');
-app.use('/admin', adminRoutes);
+app.use('/api/admin', adminRoutes);
 
 const authRoutes = require('./routes/auth.routes');
-app.use('/auth', authRoutes);
+app.use('/api/auth', authRoutes);
 
 // =====================
 // Arquivos estáticos

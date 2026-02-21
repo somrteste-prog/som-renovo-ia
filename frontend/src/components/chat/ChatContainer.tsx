@@ -4,80 +4,110 @@ import { ChatMessages } from './ChatMessages';
 import { ChatInput } from './ChatInput';
 import { useChat } from '@/hooks/useChat';
 import { UserContext } from '@/types/chat';
-import { LoginScreen } from '@/components/auth/LoginScreen';
 import logo from '@/assets/logo.jpeg';
 
-interface AuthUser {
-  email: string;
-  name: string;
-  sector: string;
-  loggedInAt: string;
-}
+import { saveUser, removeUser, getCurrentUser } from "@/services/userService";
+import { User } from "@/types/user";
 
 const DEFAULT_CONTEXT: UserContext = { name: '', sector: '' };
 
 export function ChatContainer() {
-  const [authUser, setAuthUser] = useState<AuthUser | null>(() => {
-    const saved = localStorage.getItem('somRenovoAuthUser');
-    if (saved) {
-      try { return JSON.parse(saved); } catch { return null; }
-    }
-    return null;
-  });
-
-  const [userContext, setUserContext] = useState<UserContext>(() => {
-    const saved = localStorage.getItem('somRenovoUserContext');
-    if (saved) {
-      try { return JSON.parse(saved); } catch { return DEFAULT_CONTEXT; }
-    }
-    return DEFAULT_CONTEXT;
-  });
+  const [authUser, setAuthUser] = useState<User | null>(null);
+  const [userContext, setUserContext] = useState<UserContext>(DEFAULT_CONTEXT);
 
   const { messages, isLoading, sendMessage, clearMessages } = useChat();
 
+  // 🔹 Carrega usuário salvo ao iniciar
   useEffect(() => {
-    if (authUser) localStorage.setItem('somRenovoAuthUser', JSON.stringify(authUser));
-    else localStorage.removeItem('somRenovoAuthUser');
-  }, [authUser]);
+    async function loadUser() {
+      const user = await getCurrentUser();
+      if (user) {
+        setAuthUser(user);
+        setUserContext({
+          name: user.name,
+          sector: user.sector || '',
+        });
+      }
+    }
 
-  useEffect(() => {
-    localStorage.setItem('somRenovoUserContext', JSON.stringify(userContext));
-  }, [userContext]);
+    loadUser();
+  }, []);
 
-  const handleLogin = (email: string, name: string, sector: string) => {
-    const user: AuthUser = { email, name, sector, loggedInAt: new Date().toISOString() };
+  // 🔹 Login (futuro uso real)
+  const handleLogin = async (email: string, name: string, sector: string) => {
+    const user: User = {
+      id: crypto.randomUUID(),
+      email,
+      name,
+      sector,
+      avatarUrl: "",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    await saveUser(user);
     setAuthUser(user);
     setUserContext({ name, sector });
   };
 
-  const handleLogout = () => {
+  // 🔹 Logout
+  const handleLogout = async () => {
+    await removeUser();
     setAuthUser(null);
+    setUserContext(DEFAULT_CONTEXT);
     clearMessages();
   };
 
-  const handleSendMessage = useCallback((message: string, additionalContext?: string) => {
-    sendMessage(message, userContext, additionalContext);
-  }, [sendMessage, userContext]);
+  const handleSendMessage = useCallback(
+    (message: string, additionalContext?: string) => {
+      sendMessage(message, userContext, additionalContext);
+    },
+    [sendMessage, userContext]
+  );
 
-  const handleSuggestionClick = useCallback((suggestion: string) => {
-    handleSendMessage(suggestion);
-  }, [handleSendMessage]);
-
-  if (!authUser) return <LoginScreen onLogin={handleLogin} />;
+  const handleSuggestionClick = useCallback(
+    (suggestion: string) => {
+      handleSendMessage(suggestion);
+    },
+    [handleSendMessage]
+  );
 
   return (
     <div className="relative flex flex-col h-screen bg-background overflow-hidden">
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden" aria-hidden="true">
-        <img src={logo} alt="" className="w-[50%] max-w-[350px] opacity-[0.02] dark:opacity-[0.03] select-none" draggable={false} />
+        <img
+          src={logo}
+          alt=""
+          className="w-[50%] max-w-[350px] opacity-[0.02] dark:opacity-[0.03] select-none"
+          draggable={false}
+        />
       </div>
 
       <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-primary/[0.02] to-transparent pointer-events-none" />
       <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-primary/[0.02] to-transparent pointer-events-none" />
 
       <div className="relative z-10 flex flex-col h-full">
-        <ChatHeader userContext={userContext} onUpdateContext={setUserContext} onClearChat={clearMessages} onLogout={handleLogout} messageCount={messages.length} />
-        <ChatMessages messages={messages} isLoading={isLoading} onSuggestionClick={handleSuggestionClick} />
-        <ChatInput onSend={handleSendMessage} isLoading={isLoading} showQuickPrompts={messages.length === 0} placeholder={userContext.name ? `${userContext.name}, como posso ajudar?` : 'Digite sua pergunta...'} />
+        <ChatHeader
+          onLogout={handleLogout}
+          user={authUser}
+        />
+
+        <ChatMessages
+          messages={messages}
+          isLoading={isLoading}
+          onSuggestionClick={handleSuggestionClick}
+        />
+
+        <ChatInput
+          onSend={handleSendMessage}
+          isLoading={isLoading}
+          showQuickPrompts={messages.length === 0}
+          placeholder={
+            userContext.name
+              ? `${userContext.name}, como posso ajudar?`
+              : 'Digite sua pergunta...'
+          }
+        />
       </div>
     </div>
   );

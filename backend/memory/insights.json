@@ -1,6 +1,6 @@
 {
   "topIntents": {
-    "IDEIA": 14,
+    "IDEIA": 16,
     "GERAL": 37,
     "ROTEIRO": 4,
     "CRIATIVO": 1,
@@ -11,5 +11,5 @@
     "anúncio": 1
   },
   "preferredFormats": {},
-  "lastUpdated": "2026-02-03T13:58:55.234Z"
+  "lastUpdated": "2026-02-10T23:44:14.550Z"
 }

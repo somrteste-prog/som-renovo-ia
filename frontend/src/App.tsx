@@ -7,15 +7,18 @@ import { ThemeProvider } from "next-themes";
 
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 
-import Login from "./pages/Login";
+
 import Config from "./pages/Config";
 import Dashboard from "./pages/Dashboard";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
+import ProfilePage from "@/pages/ProfilePage";
 
 import DashboardLayout from "./layouts/DashboardLayout";
 import MainLayout from "./layouts/MainLayout";
 import AuthLayout from "./layouts/AuthLayout";
+import { LoginScreen } from "./components/auth/LoginScreen";
+import { ChatHeader } from "./components/chat/ChatHeader";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -26,13 +29,31 @@ const queryClient = new QueryClient({
   },
 });
 
-// Componente para rotas privadas protegidas
+// 🔐 Proteção geral (exige login ou visitante)
 const ProtectedRouteWrapper = ({ children }: { children: JSX.Element }) => {
-  const { isAuthenticated, isGuest } = useAuth();
+  const { isAuthenticated, isGuest, loading } = useAuth();
 
-  // Guest pode acessar chat/index, mas não dashboard/config
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        Carregando...
+      </div>
+    );
+  }
+
   if (!isAuthenticated && !isGuest) {
     return <Navigate to="/login" replace />;
+  }
+
+  return children;
+};
+
+// 👑 Proteção específica para Admin
+const AdminRoute = ({ children }: { children: JSX.Element }) => {
+  const { user } = useAuth();
+
+  if (user?.role !== "admin") {
+    return <Navigate to="/home" replace />;
   }
 
   return children;
@@ -48,28 +69,59 @@ const App = () => {
             <Sonner />
             <BrowserRouter>
               <Routes>
+                {/* Redireciona raiz para login */}
+                <Route path="/" element={<Navigate to="/login" replace />} />
+
                 {/* Layout público */}
                 <Route element={<AuthLayout />}>
-                  <Route path="/login" element={<Login />} />
+                  <Route path="/login" element={<LoginScreen />} />
                 </Route>
 
-                {/* Rotas públicas (Index/Chat) */}
-                <Route path="/home" element={<Index />} />
-
-
-                {/* Rotas protegidas (Dashboard/Config) */}
+                {/* 🔐 Home (Chat) protegido */}
                 <Route
+                  path="/home"
                   element={
                     <ProtectedRouteWrapper>
                       <MainLayout />
                     </ProtectedRouteWrapper>
                   }
                 >
-                  <Route element={<DashboardLayout />}>
-                    <Route path="/dashboard" element={<Dashboard />} />
-                    <Route path="/config" element={<Config />} />
-                  </Route>
-                </Route>
+                  <Route index element={<Index />} />
+              </Route>
+
+                  {/* 🔐 Perfil  protegido */}
+                  <Route 
+                    path="/perfil" 
+                    element={
+                     <ProtectedRouteWrapper>
+                       <ProfilePage />
+                     </ProtectedRouteWrapper>
+                    } />
+
+
+                {/* 🔐 Config protegido (qualquer usuário logado ou visitante) */}
+                <Route
+                  path="/config"
+                  element={
+                    <ProtectedRouteWrapper>
+                      <Config />
+                    </ProtectedRouteWrapper>
+                  }
+                />
+
+                {/* 👑 Dashboard somente admin */}
+                <Route
+                 path="/dashboard"
+                 element={
+                 <ProtectedRouteWrapper>
+                  <AdminRoute>
+                     <DashboardLayout />
+                  </AdminRoute>
+                 </ProtectedRouteWrapper>
+                  }
+                >
+  <Route index element={<Dashboard />} />
+</Route>
 
                 {/* Fallback */}
                 <Route path="*" element={<NotFound />} />

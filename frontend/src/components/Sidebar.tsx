@@ -1,17 +1,16 @@
 import { useState } from "react";
 import { NavLink } from "react-router-dom";
-import { Home, Settings, User, LogOut, Menu } from "lucide-react";
+import { Home, Settings, LogOut, Menu, LayoutDashboard } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
-const links = [
-  { to: "/dashboard", label: "Dashboard", icon: Home },
-  { to: "/config", label: "Configurações", icon: Settings },
-  // Adicione mais links conforme necessário
-];
-
 export default function Sidebar() {
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
+
+  const links = [
+    { to: "/home", label: "Home", icon: Home },
+    { to: "/config", label: "Configurações", icon: Settings },
+  ];
 
   return (
     <aside
@@ -19,9 +18,12 @@ export default function Sidebar() {
         collapsed ? "w-20" : "w-64"
       }`}
     >
-      {/* Top: Logo + Toggle */}
+      {/* Topo */}
       <div className="flex items-center justify-between h-16 border-b border-red-700 px-3">
-        {!collapsed && <span className="text-red-500 font-bold text-xl">Sr#</span>}
+        {!collapsed && (
+          <span className="text-red-500 font-bold text-xl">Sr#</span>
+        )}
+
         <button
           className="text-gray-300 hover:text-white p-1 rounded-md"
           onClick={() => setCollapsed(!collapsed)}
@@ -30,7 +32,7 @@ export default function Sidebar() {
         </button>
       </div>
 
-      {/* Nav Links */}
+      {/* Links principais */}
       <nav className="flex-1 px-2 py-6 space-y-2">
         {links.map((link) => (
           <NavLink
@@ -45,9 +47,30 @@ export default function Sidebar() {
             }
           >
             <link.icon className="w-5 h-5" />
-            {!collapsed && <span className="text-sm font-medium">{link.label}</span>}
+            {!collapsed && (
+              <span className="text-sm font-medium">{link.label}</span>
+            )}
           </NavLink>
         ))}
+
+        {/* 👑 Dashboard só para Admin */}
+        {user?.role === "admin" && (
+          <NavLink
+            to="/dashboard"
+            className={({ isActive }) =>
+              `flex items-center gap-3 px-3 py-2 rounded-md transition-colors duration-200 ${
+                isActive
+                  ? "bg-red-700 text-white"
+                  : "text-gray-300 hover:bg-red-600 hover:text-white"
+              }`
+            }
+          >
+            <LayoutDashboard className="w-5 h-5" />
+            {!collapsed && (
+              <span className="text-sm font-medium">Dashboard</span>
+            )}
+          </NavLink>
+        )}
       </nav>
 
       {/* Logout */}

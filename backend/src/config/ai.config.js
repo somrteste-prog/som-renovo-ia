@@ -15,8 +15,6 @@ const providers = {
     headers: (apiKey) => ({
       Authorization: `Bearer ${apiKey}`,
       'Content-Type': 'application/json',
-
-      // Recomendado pelo OpenRouter (opcional, mas bom)
       'HTTP-Referer': process.env.APP_URL || 'http://localhost:3000',
       'X-Title': 'Som Renovo AI'
     })
@@ -40,8 +38,12 @@ if (!activeProvider) {
   throw new Error(`AI_PROVIDER inválido: ${AI_PROVIDER}`);
 }
 
+if (!activeProvider.apiKey) {
+  throw new Error(`API Key não definida para o provider: ${AI_PROVIDER}`);
+}
+
 module.exports = {
-  enabled: process.env.AI_AI_ENABLED !== 'false',
+  enabled: process.env.AI_AI_ENABLED === 'true',
   provider: activeProvider.name,
   endpoint: activeProvider.endpoint,
   apiKey: activeProvider.apiKey,
