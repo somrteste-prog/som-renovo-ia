@@ -20,7 +20,8 @@ export interface WebhookPayload {
 }
 
 export interface WebhookResponse {
-  resposta: string;
+  resposta?: string;
+  reply?: string;
   passos?: string[];
   sugestoes?: string[];
   perguntas_refinamento?: string[];

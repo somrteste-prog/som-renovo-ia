@@ -1,38 +1,44 @@
 import { User } from "@/types/user";
 
-const STORAGE_KEY = "somRenovoUser";
+export interface AuthUser {
+  user: User;
+  token: string;
+}
+
+const STORAGE_KEY = "@somrenovo:auth";
 
 /**
- * Simula busca de usuário.
- * Hoje usa localStorage.
- * Amanhã será GET /users/:id
+ * Busca usuário autenticado + token
  */
-export async function getCurrentUser(): Promise<User | null> {
+export async function getCurrentUser(): Promise<AuthUser | null> {
   const stored = localStorage.getItem(STORAGE_KEY);
   if (!stored) return null;
 
   try {
-    return JSON.parse(stored);
+    return JSON.parse(stored) as AuthUser;
   } catch {
     return null;
   }
 }
 
 /**
- * Atualiza dados do perfil.
- * Hoje salva localStorage.
- * Amanhã será PUT /users/:id
+ * Atualiza dados do perfil do usuário
  */
 export async function updateUser(
   data: Partial<User>
-): Promise<User | null> {
+): Promise<AuthUser | null> {
   const current = await getCurrentUser();
   if (!current) return null;
 
-  const updated: User = {
-    ...current,
+  const updatedUser: User = {
+    ...current.user,
     ...data,
     updatedAt: new Date().toISOString(),
+  };
+
+  const updated: AuthUser = {
+    user: updatedUser,
+    token: current.token,
   };
 
   localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
@@ -40,14 +46,15 @@ export async function updateUser(
 }
 
 /**
- * Salva usuário novo (login futuro)
+ * Salva usuário novo + token (login)
  */
-export async function saveUser(user: User): Promise<void> {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
+export async function saveUser(user: User, token: string): Promise<void> {
+  const data: AuthUser = { user, token };
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
 }
 
 /**
- * Remove usuário (logout)
+ * Remove usuário + token (logout)
  */
 export async function removeUser(): Promise<void> {
   localStorage.removeItem(STORAGE_KEY);

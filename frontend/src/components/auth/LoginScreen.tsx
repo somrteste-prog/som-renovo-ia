@@ -8,7 +8,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import logo from "@/assets/logo.jpeg";
 
 const SECTORS = ["Atendimento", "Pedagógico", "Marketing", "Administrativo"];
-const ADMIN_SECRET = "admin123"; // Senha extra para criar conta admin/mentor
 
 export function LoginScreen() {
   const { login, loginGuest, updateUser } = useAuth();
@@ -45,41 +44,62 @@ export function LoginScreen() {
     }
   }
 
-  async function handleSignupStep(e: React.FormEvent) {
-    e.preventDefault();
+ async function handleSignupStep(e: React.FormEvent) {
+  e.preventDefault();
 
-    // Primeiro passo: email e senha
-    if (step === "credentials") {
-      if (!email || !password) return;
-      setStep("info");
-      return;
-    }
-
-    // Segundo passo: info adicionais
-    if (!name || !sector) return;
-
-    if ((role === "admin" || role === "mentor") && secretKey !== ADMIN_SECRET) {
-      alert("Chave secreta inválida para criar conta admin/mentor");
-      return;
-    }
-
-    // Aqui chamaria API real para criar conta, mas vamos simular login
-    const simulatedUser = {
-      id: Date.now().toString(),
-      name,
-      email,
-      role,
-      sector,
-    };
-    localStorage.setItem("@auth:user", JSON.stringify({ user: simulatedUser, token: "guest" }));
-
-    // Atualiza contexto
-    updateUser(simulatedUser);
-
-    // Redireciona
-    if (role === "admin") navigate("/dashboard");
-    else navigate("/home");
+  if (step === "credentials") {
+    if (!email || !password) return;
+    setStep("info");
+    return;
   }
+
+  if (!name || !sector) return;
+
+  try {
+    setIsLoading(true);
+
+    const response = await fetch(
+      `${import.meta.env.VITE_WEBHOOK_URL}auth/register`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: name.trim(),
+          email: email.trim(),
+          password: password.trim(),
+          role,
+          sector,
+          secretKey:
+            role === "admin" || role === "mentor" ? secretKey : undefined,
+        }),
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "Erro ao criar conta");
+    }
+
+    console.log("Conta criada:", data);
+
+    // Login automático
+    await login(email.trim(), password.trim());
+
+    console.log("Login realizado");
+
+    // Redirecionamento simples e seguro
+    navigate("/home");
+
+  } catch (error: any) {
+    console.error(error);
+    alert(error.message || "Erro ao criar conta");
+  } finally {
+    setIsLoading(false);
+  }
+}
 
   function handleGuest() {
     loginGuest();
@@ -138,19 +158,19 @@ export function LoginScreen() {
                 Entrar como visitante
               </Button>
 
-              <p className="text-sm text-center text-muted-foreground mt-2">
-                Não tem conta?{" "}
-                <button
-                  type="button"
-                  className="text-primary font-medium"
-                  onClick={() => {
-                    setMode("signup");
-                    setStep("credentials");
-                  }}
-                >
-                  Criar conta
-                </button>
-              </p>
+             <p className="text-sm text-center text-muted-foreground mt-2">
+  Não tem conta?{" "}
+  <button
+    type="button"
+    className="text-primary font-medium"
+    onClick={() => {
+      setMode("signup");
+      setStep("credentials");
+    }}
+  >
+    Criar conta
+  </button>
+</p>
             </form>
           )}
 
@@ -272,8 +292,8 @@ export function LoginScreen() {
                     >
                       Voltar
                     </Button>
-                    <Button type="submit" className="flex-1 h-12 som-gradient">
-                      Criar conta
+                    <Button type="submit" className="flex-1 h-12 som-gradient" disabled={isLoading}>
+                       {isLoading ? "Criando..." : "Criar conta"}
                     </Button>
                   </div>
                 </>

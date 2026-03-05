@@ -11,7 +11,12 @@ export function useChat() {
   const [error, setError] = useState<string | null>(null);
 
   const sendMessage = useCallback(
-    async (content: string, userContext: UserContext, additionalContext?: string) => {
+    async (
+      content: string,
+      userContext: UserContext,
+      additionalContext?: string,
+      token?: string // 🔹 adiciona token JWT
+    ) => {
       if (!content.trim()) return;
 
       // 1️⃣ Mensagem do usuário
@@ -35,10 +40,13 @@ export function useChat() {
           contexto_cliente: additionalContext || userContext.additionalContext,
         };
 
-        // 3️⃣ Chamada ao backend
+        // 3️⃣ Chamada ao backend com token no header
         const response = await fetch(WEBHOOK_URL, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}), // 🔹 token JWT
+          },
           body: JSON.stringify(payload),
         });
 
@@ -46,7 +54,7 @@ export function useChat() {
           throw new Error('Erro ao conectar com o servidor');
         }
 
-        const data = await response.json();
+        const data = (await response.json()) as WebhookResponse;
 
         // 🔒 Blindagem total da resposta
         const assistantContent =

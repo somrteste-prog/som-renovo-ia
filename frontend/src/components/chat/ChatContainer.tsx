@@ -14,55 +14,66 @@ const DEFAULT_CONTEXT: UserContext = { name: '', sector: '' };
 export function ChatContainer() {
   const [authUser, setAuthUser] = useState<User | null>(null);
   const [userContext, setUserContext] = useState<UserContext>(DEFAULT_CONTEXT);
+  const [token, setToken] = useState<string | null>(null); // JWT
 
   const { messages, isLoading, sendMessage, clearMessages } = useChat();
 
-  // 🔹 Carrega usuário salvo ao iniciar
+  // 🔹 Carrega usuário e token salvo ao iniciar
   useEffect(() => {
     async function loadUser() {
-      const user = await getCurrentUser();
-      if (user) {
-        setAuthUser(user);
+      const saved = await getCurrentUser(); // { user, token }
+      if (saved) {
+        setAuthUser(saved.user);
+        setToken(saved.token || null);
         setUserContext({
-          name: user.name,
-          sector: user.sector || '',
+          name: saved.user.name,
+          sector: saved.user.sector || '',
         });
       }
     }
-
     loadUser();
   }, []);
 
-  // 🔹 Login (futuro uso real)
-  const handleLogin = async (email: string, name: string, sector: string) => {
-    const user: User = {
-      id: crypto.randomUUID(),
-      email,
-      name,
-      sector,
-      avatarUrl: "",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
+  // 🔹 Login real via backend
+  const handleLogin = async (email: string, password: string) => {
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await res.json();
 
-    await saveUser(user);
-    setAuthUser(user);
-    setUserContext({ name, sector });
+      if (!res.ok) throw new Error(data.error || 'Erro no login');
+
+      const user: User = data.user;
+      const jwtToken: string = data.token;
+
+      await saveUser(user, jwtToken); // salva usuário + token
+      setAuthUser(user);
+      setToken(jwtToken);
+      setUserContext({ name: user.name, sector: user.sector || '' });
+    } catch (err) {
+      console.error(err);
+      alert('Falha no login');
+    }
   };
 
   // 🔹 Logout
   const handleLogout = async () => {
     await removeUser();
     setAuthUser(null);
+    setToken(null);
     setUserContext(DEFAULT_CONTEXT);
     clearMessages();
   };
 
+  // 🔹 Envio de mensagem (token separado do additionalContext)
   const handleSendMessage = useCallback(
     (message: string, additionalContext?: string) => {
-      sendMessage(message, userContext, additionalContext);
+      sendMessage(message, userContext, additionalContext, token ?? undefined); // 🔹 token enviado corretamente
     },
-    [sendMessage, userContext]
+    [sendMessage, userContext, token]
   );
 
   const handleSuggestionClick = useCallback(

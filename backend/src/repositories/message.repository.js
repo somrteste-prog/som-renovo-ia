@@ -44,3 +44,17 @@ async function createMessage({ conversationId, role, content }) {
 module.exports = {
   createMessage
 };
+
+async function getMessagesByConversation(conversationId, limit = 20) {
+  const result = await db.query(
+    `SELECT role, content, created_at
+     FROM messages
+     WHERE conversation_id = $1
+     ORDER BY created_at ASC
+     LIMIT $2`,
+    [conversationId, limit]
+  );
+  return result.rows;
+}
+
+module.exports = { getMessagesByConversation, /* outros métodos */ };
